@@ -804,11 +804,23 @@ async def get_model_status(pipeline_id: str):
         # Check if files actually exist
         downloaded = models_are_downloaded(pipeline_id)
 
-        # Clean up progress if download is complete
-        if downloaded and progress:
-            download_progress_manager.clear_progress(pipeline_id)
-            progress = None
+        # Clean up progress if download is complete and enough time has passed
+        # This gives frontend time to see the completed state
+        if downloaded and progress and not progress.get("is_downloading"):
+            # Get completion timestamp from internal progress data
+            import time
+            progress_data = download_progress_manager._progress.get(pipeline_id, {})
+            completed_at = progress_data.get("completed_at", 0)
 
+            # Clear after 2 seconds to allow frontend to see completion
+            if completed_at and time.time() - completed_at > 2:
+                logger.info(f"Clearing completed progress for {pipeline_id}")
+                download_progress_manager.clear_progress(pipeline_id)
+                progress = None
+            else:
+                logger.info(f"Progress for {pipeline_id}: completed but waiting to clear (elapsed: {time.time() - completed_at:.1f}s)")
+
+        logger.info(f"Status check for {pipeline_id}: downloaded={downloaded}, progress={progress}")
         return {"downloaded": downloaded, "progress": progress}
     except Exception as e:
         logger.error(f"Error checking model status: {e}")
@@ -832,14 +844,20 @@ async def download_pipeline_models(request: DownloadModelsRequest):
                 detail=f"Download already in progress for {pipeline_id}",
             )
 
+        # Initialize progress tracking immediately
+        download_progress_manager.update(pipeline_id, "Starting...", 0, 0)
+
         # Download in a background thread to avoid blocking
         import threading
 
         def download_in_background():
             """Run download in background thread."""
             try:
+                logger.info(f"Starting background download for {pipeline_id}")
                 download_models(pipeline_id)
+                logger.info(f"Download completed for {pipeline_id}, marking complete")
                 download_progress_manager.mark_complete(pipeline_id)
+                logger.info(f"Marked {pipeline_id} as complete")
             except Exception as e:
                 logger.error(f"Error downloading models for {pipeline_id}: {e}")
                 download_progress_manager.clear_progress(pipeline_id)

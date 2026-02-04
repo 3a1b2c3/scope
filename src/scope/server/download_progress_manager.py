@@ -3,6 +3,7 @@ Download progress tracking for pipeline model downloads.
 """
 
 import threading
+import time
 
 
 class DownloadProgressManager:
@@ -54,6 +55,12 @@ class DownloadProgressManager:
         with self._lock:
             if pipeline_id in self._progress:
                 self._progress[pipeline_id]["is_downloading"] = False
+                self._progress[pipeline_id]["completed_at"] = time.time()
+                # Ensure we have a "Complete" artifact showing 100%
+                self._progress[pipeline_id]["artifacts"]["Complete"] = {
+                    "downloaded_mb": 100,
+                    "total_mb": 100,
+                }
 
     def clear_progress(self, pipeline_id: str):
         """Clear progress data."""
