@@ -1,0 +1,28 @@
+aiortc>=1.13.0
+fastapi>=0.116.1
+httpx>=0.28.1
+twilio>=9.8.0
+uvicorn>=0.35.0
+torch==2.7.0
+torchvision==0.22.0
+easydict>=1.13
+diffusers>=0.31.0
+ftfy>=6.3.1
+transformers>=4.49.0
+einops>=0.8.1
+lmdb>=1.7.3
+omegaconf>=2.3.0
+accelerate>=1.1.1
+#flash-attn==2.8.3; sys_platform == "linux" or sys_platform == "win32"
+#sageattention==2.2.0; sys_platform == "linux" or sys_platform == "win32"
+safetensors>=0.6.2
+huggingface_hub>=0.25.0
+pluggy>=1.5.0
+click>=8.3.1
+peft>=0.17.1
+torchao==0.15.0
+kernels>=0.10.4
+triton==3.5.1; sys_platform == "linux"
+triton-windows==3.5.1.post24; sys_platform == "win32"
+SpoutGL>=0.1.1; sys_platform == "win32"
+PyOpenGL>=3.1.10; sys_platform == "win32"
