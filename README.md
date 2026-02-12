@@ -108,6 +108,19 @@ This will start the server.
 uv run daydream-scope
 ```
 
+You can enable all pipeline schema fields with the `--all-fields` flag:
+
+```
+uv run daydream-scope --all-fields
+```
+
+Other available options:
+- `--host <HOST>`: Host to bind to (default: 0.0.0.0)
+- `--port <PORT>`: Port to bind to (default: 8000)
+- `--no-browser` or `-N`: Do not automatically open a browser window
+- `--reload`: Enable auto-reload for development
+- `--version`: Show version information
+
 After the server starts up, the frontend will be available at `http://localhost:8000`.
 
 The frontend will present a dialog for downloading model weights for pipelines before running them (by pressing play with the pipeline selected) for the first time. The default directory where model weights are stored is `~/.daydream-scope/models`.
@@ -183,10 +196,36 @@ When you start Scope, it will automatically use Cloudflare's TURN servers and yo
 uv run daydream-scope
 ```
 
+## Schema Fields
+
+You can inspect pipeline schemas and their fields using the `print_schema_fields.py` script:
+
+```bash
+# Show all fields from all pipeline schemas (comprehensive)
+uv run python print_schema_fields.py --allfields
+
+# Show specific pipeline fields
+uv run python print_schema_fields.py --pipeline streamdiffusionv2
+
+# Show all pipelines
+uv run python print_schema_fields.py --all
+
+# Show JSON schema
+uv run python print_schema_fields.py --json
+
+# Show GUI component mapping
+uv run python print_schema_fields.py --gui-mapping
+```
+
 ## Environment Variables
 
 ### `HF_TOKEN`
 HuggingFace access token for using Cloudflare's TURN servers. See [Firewalls](#firewalls) for details.
+
+### `DAYDREAM_SCOPE_ALL_FIELDS`
+- **Default**: `false`
+- **Description**: Enable all pipeline schema fields. When set to `1`, `true`, or `yes`, all pipeline configuration fields will be available.
+- **Note**: This can also be enabled using the `--all-fields` CLI flag when starting the server.
 
 ### `RECORDING_ENABLED`
 - **Default**: `true`

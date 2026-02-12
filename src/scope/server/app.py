@@ -1010,12 +1010,17 @@ def open_browser_when_ready(host: str, port: int, server):
         logger.info(f"🌐 UI is available at: {url}")
 
 
-def run_server(reload: bool, host: str, port: int, no_browser: bool):
+def run_server(reload: bool, host: str, port: int, no_browser: bool, all_fields: bool = False):
     """Run the Daydream Scope server."""
 
     from scope.core.pipelines.registry import (
         PipelineRegistry,  # noqa: F401 - imported for side effects (registry initialization)
     )
+
+    # Set all-fields flag as environment variable for global access
+    if all_fields:
+        os.environ["DAYDREAM_SCOPE_ALL_FIELDS"] = "1"
+        logger.info("All pipeline schema fields enabled")
 
     # Configure static file serving
     configure_static_files()
@@ -1075,8 +1080,13 @@ def run_server(reload: bool, host: str, port: int, no_browser: bool):
     is_flag=True,
     help="Do not automatically open a browser window after the server starts",
 )
+@click.option(
+    "--all-fields",
+    is_flag=True,
+    help="Enable all pipeline schema fields (default: False)",
+)
 @click.pass_context
-def main(ctx, version: bool, reload: bool, host: str, port: int, no_browser: bool):
+def main(ctx, version: bool, reload: bool, host: str, port: int, no_browser: bool, all_fields: bool):
     # Handle version flag
     if version:
         print_version_info()
@@ -1084,7 +1094,7 @@ def main(ctx, version: bool, reload: bool, host: str, port: int, no_browser: boo
 
     # If no subcommand was invoked, run the server
     if ctx.invoked_subcommand is None:
-        run_server(reload, host, port, no_browser)
+        run_server(reload, host, port, no_browser, all_fields)
 
 
 def _is_preview_enabled():
