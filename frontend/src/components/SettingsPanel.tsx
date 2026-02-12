@@ -37,6 +37,7 @@ import type {
   VaeType,
 } from "../types";
 import { LoRAManager } from "./LoRAManager";
+import { DynamicFieldRenderer } from "./DynamicFieldRenderer";
 
 // Minimum dimension for most pipelines (will be overridden by pipeline-specific minDimension from schema)
 const DEFAULT_MIN_DIMENSION = 1;
@@ -101,6 +102,10 @@ interface SettingsPanelProps {
   // Postprocessors
   postprocessorIds?: string[];
   onPostprocessorIdsChange?: (ids: string[]) => void;
+  // Custom schema fields
+  customSchemaFields?: Record<string, import("../types").SchemaFieldMetadata>;
+  customFieldValues?: Record<string, unknown>;
+  onCustomFieldChange?: (fieldName: string, value: unknown) => void;
 }
 
 export function SettingsPanel({
@@ -149,6 +154,9 @@ export function SettingsPanel({
   onPreprocessorIdsChange,
   postprocessorIds = [],
   onPostprocessorIdsChange,
+  customSchemaFields,
+  customFieldValues = {},
+  onCustomFieldChange,
 }: SettingsPanelProps) {
   // Local slider state management hooks
   const noiseScaleSlider = useLocalSliderValue(noiseScale, onNoiseScaleChange);
@@ -946,6 +954,33 @@ export function SettingsPanel({
                 />
               </div>
             )}
+          </div>
+        )}
+
+        {/* Custom Schema Fields - Dynamic Rendering */}
+        {customSchemaFields && Object.keys(customSchemaFields).length > 0 && (
+          <div className="space-y-4">
+            <div className="text-sm font-medium text-muted-foreground border-t pt-4">
+              Pipeline Parameters
+            </div>
+            {Object.entries(customSchemaFields).map(([fieldName, field]) => (
+              <div key={fieldName} className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <LabelWithTooltip
+                    label={field.name}
+                    tooltip={field.description}
+                    className="text-sm text-foreground"
+                  />
+                  <DynamicFieldRenderer
+                    field={field}
+                    value={customFieldValues[fieldName] ?? field.default}
+                    onChange={onCustomFieldChange || (() => {})}
+                    disabled={isStreaming || isLoading}
+                    isStreaming={isStreaming}
+                  />
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </CardContent>

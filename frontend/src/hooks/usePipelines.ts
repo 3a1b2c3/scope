@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { getPipelineSchemas } from "../lib/api";
+import { extractCustomSchemaFields } from "../lib/schemaFieldExtractor";
 import type { InputMode, PipelineInfo } from "../types";
 
 export function usePipelines() {
@@ -44,6 +45,9 @@ export function usePipelines() {
           const supportsImages =
             schema.config_schema?.properties?.images !== undefined;
 
+          // Extract custom schema fields for dynamic rendering
+          const customSchemaFields = extractCustomSchemaFields(schema.config_schema);
+
           transformed[id] = {
             name: schema.name,
             about: schema.description,
@@ -72,6 +76,7 @@ export function usePipelines() {
             vaeTypes,
             supportsControllerInput,
             supportsImages,
+            customSchemaFields,
           };
         }
 

@@ -48,6 +48,18 @@ export interface LoRAConfig {
   mergeMode?: LoraMergeStrategy;
 }
 
+// Schema field metadata for dynamic rendering
+export interface SchemaFieldMetadata {
+  name: string;
+  type: 'boolean' | 'number' | 'integer' | 'string' | 'enum';
+  default?: unknown;
+  description?: string;
+  minimum?: number;
+  maximum?: number;
+  enumValues?: unknown[];
+  step?: number;
+}
+
 export interface SettingsState {
   pipelineId: PipelineId;
   resolution?: {
@@ -90,6 +102,8 @@ export interface SettingsState {
   preprocessorIds?: string[];
   // Postprocessors
   postprocessorIds?: string[];
+  // Custom pipeline config parameters (extracted from schema)
+  customSchemaFields?: Record<string, unknown>;
 }
 
 export interface PipelineInfo {
@@ -125,6 +139,8 @@ export interface PipelineInfo {
   supportsControllerInput?: boolean;
   // Images input support - presence of images field in pipeline schema
   supportsImages?: boolean;
+  // Custom schema fields metadata for dynamic rendering
+  customSchemaFields?: Record<string, SchemaFieldMetadata>;
 }
 
 export interface DownloadProgress {

@@ -686,6 +686,23 @@ export function StreamPage() {
     }
   };
 
+  // Handle custom schema field changes
+  const handleCustomFieldChange = (fieldName: string, value: unknown) => {
+    updateSettings({
+      customSchemaFields: {
+        ...settings.customSchemaFields,
+        [fieldName]: value,
+      },
+    });
+
+    // Send update to backend if streaming (field names already in snake_case)
+    if (isStreaming) {
+      sendParameterUpdate({
+        [fieldName]: value,
+      });
+    }
+  };
+
   // Handle Spout input name change from InputAndControlsPanel
   const handleSpoutReceiverChange = (name: string) => {
     updateSettings({
@@ -987,6 +1004,7 @@ export function StreamPage() {
         first_frame_image?: string;
         last_frame_image?: string;
         images?: string[];
+        [key: string]: unknown; // Allow dynamic custom schema fields
       } = {
         // Signal the intended input mode to the backend so it doesn't
         // briefly fall back to text mode before video frames arrive
@@ -1060,6 +1078,13 @@ export function StreamPage() {
       }
       if (settings.spoutReceiver?.enabled) {
         initialParameters.spout_receiver = settings.spoutReceiver;
+      }
+
+      // Add custom schema field values if present
+      if (settings.customSchemaFields) {
+        Object.entries(settings.customSchemaFields).forEach(([key, value]) => {
+          initialParameters[key] = value; // Field names already in snake_case
+        });
       }
 
       // Reset paused state when starting a fresh stream
@@ -1390,6 +1415,11 @@ export function StreamPage() {
             onPreprocessorIdsChange={handlePreprocessorIdsChange}
             postprocessorIds={settings.postprocessorIds ?? []}
             onPostprocessorIdsChange={handlePostprocessorIdsChange}
+            customSchemaFields={
+              pipelines?.[settings.pipelineId]?.customSchemaFields
+            }
+            customFieldValues={settings.customSchemaFields}
+            onCustomFieldChange={handleCustomFieldChange}
           />
         </div>
       </div>
