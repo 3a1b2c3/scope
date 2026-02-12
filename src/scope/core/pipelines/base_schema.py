@@ -299,6 +299,8 @@ class BasePipelineConfig(BaseModel):
         Returns:
             Dict containing pipeline metadata
         """
+        import os
+
         metadata = cls.get_pipeline_metadata()
         metadata["supported_modes"] = cls.get_supported_modes()
         metadata["default_mode"] = cls.get_default_mode()
@@ -328,7 +330,46 @@ class BasePipelineConfig(BaseModel):
         metadata["modified"] = cls.modified
         # Convert UsageType enum values to strings for JSON serialization
         metadata["usage"] = [usage.value for usage in cls.usage] if cls.usage else []
-        metadata["config_schema"] = cls.model_json_schema()
+
+        # Get full schema
+        config_schema = cls.model_json_schema()
+
+        # Filter custom fields if --all-fields flag is not enabled
+        all_fields_enabled = os.environ.get("DAYDREAM_SCOPE_ALL_FIELDS", "").lower() in ("1", "true", "yes")
+
+        if not all_fields_enabled:
+            # Define essential/basic fields that should always be shown
+            # Includes all Input & Controls fields
+            essential_fields = {
+                # Image/Resolution
+                "height", "width",
+                # Core Controls
+                "base_seed", "manage_cache",
+                # Generation Parameters
+                "denoising_steps", "noise_scale", "noise_controller",
+                # Input Controls
+                "input_size", "ctrl_input",
+                # VACE/Reference Images
+                "ref_images", "vace_context_scale"
+            }
+
+            # Filter schema properties to only include essential fields
+            if "properties" in config_schema:
+                filtered_properties = {
+                    field_name: field_schema
+                    for field_name, field_schema in config_schema["properties"].items()
+                    if field_name in essential_fields
+                }
+                config_schema["properties"] = filtered_properties
+
+                # Update required fields list to only include essential fields
+                if "required" in config_schema:
+                    config_schema["required"] = [
+                        field for field in config_schema["required"]
+                        if field in essential_fields
+                    ]
+
+        metadata["config_schema"] = config_schema
 
         # Include mode-specific defaults (excluding None values and the "default" flag)
         mode_defaults = {}

@@ -108,7 +108,7 @@ This will start the server.
 uv run daydream-scope
 ```
 
-You can enable all pipeline schema fields with the `--all-fields` flag:
+By default, only essential pipeline configuration fields are shown. You can enable all fields (including advanced/custom fields) with the `--all-fields` flag:
 
 ```
 uv run daydream-scope --all-fields
@@ -224,7 +224,7 @@ HuggingFace access token for using Cloudflare's TURN servers. See [Firewalls](#f
 
 ### `DAYDREAM_SCOPE_ALL_FIELDS`
 - **Default**: `false`
-- **Description**: Enable all pipeline schema fields. When set to `1`, `true`, or `yes`, all pipeline configuration fields will be available.
+- **Description**: Enable all pipeline schema fields including advanced/custom fields. By default, only essential configuration fields are shown. When set to `1`, `true`, or `yes`, all pipeline configuration fields (including pipeline-specific custom fields) will be available in the API and UI.
 - **Note**: This can also be enabled using the `--all-fields` CLI flag when starting the server.
 
 ### `RECORDING_ENABLED`
