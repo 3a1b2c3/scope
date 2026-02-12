@@ -27,6 +27,8 @@ export interface WebRTCOfferRequest {
     vace_context_scale?: number;
     pipeline_ids?: string[];
     images?: string[];
+    // Allow custom schema fields from pipelines
+    [key: string]: unknown;
   };
 }
 

@@ -23,6 +23,8 @@ interface InitialParameters {
   images?: string[];
   first_frame_image?: string;
   last_frame_image?: string;
+  // Allow custom schema fields from pipelines
+  [key: string]: unknown;
 }
 
 interface UseWebRTCOptions {

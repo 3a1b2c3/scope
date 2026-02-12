@@ -163,8 +163,6 @@ class WebRTCManager:
                 initial_parameters = request.initialParameters.model_dump(
                     exclude_none=True
                 )
-            logger.info(f"Received initial parameters: {initial_parameters}")
-
             # Create new RTCPeerConnection with configuration
             pc = RTCPeerConnection(self.rtc_config)
             session = Session(pc)

@@ -170,9 +170,35 @@ export function StreamPage() {
     startStream,
     stopStream,
     updateVideoTrack,
-    sendParameterUpdate,
+    sendParameterUpdate: sendParameterUpdateRaw,
     sessionId,
   } = useWebRTC();
+
+  // Wrapper that automatically includes custom schema fields in every parameter update
+  const sendParameterUpdate = (params: Record<string, unknown>) => {
+    // Get current custom field values from settings
+    const customFields: Record<string, unknown> = {};
+    const currentPipeline = pipelines?.[settings.pipelineId];
+
+    if (currentPipeline?.customSchemaFields && settings.customSchemaFields) {
+      // Include all custom schema field values
+      Object.entries(currentPipeline.customSchemaFields).forEach(([fieldName, field]) => {
+        const value = settings.customSchemaFields?.[fieldName] ?? field.default;
+        if (value !== undefined) {
+          customFields[fieldName] = value;
+        }
+      });
+    }
+
+    // Merge custom fields with the specific parameters being updated
+    // Parameters in `params` take precedence over defaults
+    const mergedParams = {
+      ...customFields,
+      ...params,
+    };
+
+    sendParameterUpdateRaw(mergedParams);
+  };
 
   // Computed loading state - true when downloading models, loading pipeline, or connecting WebRTC
   const isLoading = isDownloading || isPipelineLoading || isConnecting;
@@ -1066,6 +1092,32 @@ export function StreamPage() {
         initialParameters.last_frame_image = settings.lastFrameImage;
       }
 
+      // Matrix2Config custom schema fields - always add defaults
+      // These will be used if pipeline supports them
+      console.log('[DEBUG] BEFORE adding Matrix2Config fields:', Object.keys(initialParameters));
+      initialParameters.height = 352;
+      initialParameters.width = 640;
+      initialParameters.vae_type = "lightvae";
+      initialParameters.n_frames = 300;
+      initialParameters.video_length = 64;
+      initialParameters.warp_denoising_step = true;
+      initialParameters.ts_schedule = false;
+      initialParameters.mixed_precision = true;
+      initialParameters.base_seed = 42;
+      initialParameters.image_or_video_shape = [1, 16, 15, 44, 80];
+      initialParameters.num_frame_per_block = 1;
+      initialParameters.context_noise = 0.0;
+      initialParameters.mode = "universal";
+      initialParameters.causal = true;
+      initialParameters.output_folder = "./outputs/";
+      initialParameters.img_path = "";
+      initialParameters.max_num_output_frames = 300;
+      initialParameters.export = false;
+      initialParameters.viz = false;
+      initialParameters.debug = false;
+      console.log('[DEBUG] AFTER adding Matrix2Config fields:', Object.keys(initialParameters));
+      console.log('[DEBUG] Matrix2Config fields sample - height:', initialParameters.height, 'width:', initialParameters.width);
+
       // Video mode parameters - applies to all pipelines in video mode
       if (currentMode === "video") {
         initialParameters.noise_scale = settings.noiseScale ?? 0.7;
@@ -1080,12 +1132,22 @@ export function StreamPage() {
         initialParameters.spout_receiver = settings.spoutReceiver;
       }
 
-      // Add custom schema field values if present
-      if (settings.customSchemaFields) {
-        Object.entries(settings.customSchemaFields).forEach(([key, value]) => {
-          initialParameters[key] = value; // Field names already in snake_case
+      // Add custom schema fields - include ALL fields from schema with defaults
+      const customSchemaFields = currentPipeline?.customSchemaFields;
+      console.log('[StreamPage] currentPipeline:', currentPipeline?.name);
+      console.log('[StreamPage] customSchemaFields:', customSchemaFields);
+      if (customSchemaFields) {
+        Object.entries(customSchemaFields).forEach(([fieldName, field]) => {
+          // Use value from settings if available, otherwise use schema default
+          const value = settings.customSchemaFields?.[fieldName] ?? field.default;
+          console.log(`[StreamPage] Adding custom field ${fieldName}:`, value, '(from', settings.customSchemaFields?.[fieldName] ? 'settings' : 'default', ')');
+          if (value !== undefined) {
+            initialParameters[fieldName] = value; // Field names already in snake_case
+          }
         });
       }
+
+      console.log('[StreamPage] Final initialParameters:', initialParameters);
 
       // Reset paused state when starting a fresh stream
       updateSettings({ paused: false });

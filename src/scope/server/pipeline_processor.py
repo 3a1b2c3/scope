@@ -357,7 +357,6 @@ class PipelineProcessor:
         try:
             # Pass parameters (excluding prepare-only parameters)
             call_params = dict(self.parameters.items())
-
             # Pass reset_cache as init_cache to pipeline
             call_params["init_cache"] = not self.is_prepared
             if reset_cache is not None:
