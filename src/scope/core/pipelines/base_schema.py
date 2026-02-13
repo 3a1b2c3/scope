@@ -14,7 +14,7 @@ Child classes can override field defaults with type-annotated assignments:
 For pipelines that support controller input (WASD/mouse), include a ctrl_input field:
     ctrl_input: CtrlInput | None = None
 """
-
+import os
 from enum import Enum
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal
 
@@ -208,29 +208,70 @@ class BasePipelineConfig(BaseModel):
         Literal["linear", "slerp"] | None
     ] = "linear"
 
-    # Resolution settings - use field templates for consistency
-    height: int = height_field()
-    width: int = width_field()
+    # Resolution settings - always show in GUI
+    height: int = Field(
+        default=512,
+        ge=1,
+        description="Output height in pixels",
+        json_schema_extra={"always_show": True}
+    )
+    width: int = Field(
+        default=512,
+        ge=1,
+        description="Output width in pixels",
+        json_schema_extra={"always_show": True}
+    )
 
-    # Core parameters
+    # Core parameters - always show in GUI
     manage_cache: bool = Field(
         default=True,
         description="Enable automatic cache management for performance optimization",
+        json_schema_extra={"always_show": True}
     )
     base_seed: Annotated[int, Field(ge=0)] = Field(
         default=42,
         description="Base random seed for reproducible generation",
+        json_schema_extra={"always_show": True}
     )
-    denoising_steps: list[int] | None = denoising_steps_field()
+    denoising_steps: list[int] | None = Field(
+        default=None,
+        description="Denoising step schedule for progressive generation",
+        json_schema_extra={"always_show": True}
+    )
 
-    # Video mode parameters (None means not applicable/text mode)
-    noise_scale: Annotated[float, Field(ge=0.0, le=1.0)] | None = noise_scale_field()
-    noise_controller: bool | None = noise_controller_field()
-    input_size: int | None = input_size_field()
+    # Video mode parameters - always show in GUI
+    noise_scale: Annotated[float, Field(ge=0.0, le=1.0)] | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Amount of noise to add during video generation (video mode only)",
+        json_schema_extra={"always_show": True}
+    )
+    noise_controller: bool | None = Field(
+        default=None,
+        description="Enable dynamic noise control during generation (video mode only)",
+        json_schema_extra={"always_show": True}
+    )
+    input_size: int | None = Field(
+        default=1,
+        ge=1,
+        description="Expected input video frame count (video mode only)",
+        json_schema_extra={"always_show": True}
+    )
 
-    # VACE (optional reference image conditioning)
-    ref_images: list[str] | None = ref_images_field()
-    vace_context_scale: float = vace_context_scale_field()
+    # VACE (optional reference image conditioning) - always show in GUI
+    ref_images: list[str] | None = Field(
+        default=None,
+        description="List of reference image paths for VACE conditioning",
+        json_schema_extra={"always_show": True}
+    )
+    vace_context_scale: float = Field(
+        default=1.0,
+        ge=0.0,
+        le=2.0,
+        description="Scaling factor for VACE hint injection (0.0 to 2.0)",
+        json_schema_extra={"always_show": True}
+    )
 
     @classmethod
     def get_pipeline_metadata(cls) -> dict[str, str]:
@@ -299,7 +340,6 @@ class BasePipelineConfig(BaseModel):
         Returns:
             Dict containing pipeline metadata
         """
-        import os
 
         metadata = cls.get_pipeline_metadata()
         metadata["supported_modes"] = cls.get_supported_modes()
@@ -334,13 +374,16 @@ class BasePipelineConfig(BaseModel):
         # Get full schema
         config_schema = cls.model_json_schema()
 
-        # Filter custom fields if --all-fields flag is not enabled
-        all_fields_enabled = os.environ.get("DAYDREAM_SCOPE_ALL_FIELDS", "").lower() in ("1", "true", "yes")
+        # Show all fields by default. Only filter if ESSENTIAL_FIELDS_ONLY is explicitly enabled
+        # Set DAYDREAM_SCOPE_ESSENTIAL_FIELDS_ONLY=1 to show only essential fields
+        essential_fields_only = os.environ.get("DAYDREAM_SCOPE_ESSENTIAL_FIELDS_ONLY", "").lower() in ("1", "true", "yes")
 
-        if not all_fields_enabled:
-            # Define essential/basic fields that should always be shown
-            # Includes all Input & Controls fields
+        if essential_fields_only:
+            # Define essential/basic fields that should always be shown when filtering is enabled
+            # NOTE: Fields marked with json_schema_extra={"always_show": True} in any pipeline
+            # will also be included automatically, even if not listed here
             essential_fields = {
+                "prompts", 
                 # Image/Resolution
                 "height", "width",
                 # Core Controls
@@ -348,25 +391,31 @@ class BasePipelineConfig(BaseModel):
                 # Generation Parameters
                 "denoising_steps", "noise_scale", "noise_controller",
                 # Input Controls
-                "input_size", "ctrl_input",
+                "input_size", "ctrl_input", "images",
                 # VACE/Reference Images
-                "ref_images", "vace_context_scale"
+                "ref_images", "vace_context_scale",
+                # Pipeline-specific fields can add always_show flag to be included
             }
 
-            # Filter schema properties to only include essential fields
+            # Filter schema properties to include:
+            # 1. Essential fields defined above
+            # 2. Any field with json_schema_extra={"always_show": True}
             if "properties" in config_schema:
-                filtered_properties = {
-                    field_name: field_schema
-                    for field_name, field_schema in config_schema["properties"].items()
-                    if field_name in essential_fields
-                }
+                filtered_properties = {}
+                for field_name, field_schema in config_schema["properties"].items():
+                    # Check if field has always_show flag in its schema
+                    always_show = field_schema.get("always_show", False)
+
+                    if field_name in essential_fields or always_show:
+                        filtered_properties[field_name] = field_schema
+
                 config_schema["properties"] = filtered_properties
 
-                # Update required fields list to only include essential fields
+                # Update required fields list to only include shown fields
                 if "required" in config_schema:
                     config_schema["required"] = [
                         field for field in config_schema["required"]
-                        if field in essential_fields
+                        if field in filtered_properties
                     ]
 
         metadata["config_schema"] = config_schema
