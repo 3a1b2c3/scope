@@ -25,45 +25,35 @@ from pydantic.fields import FieldInfo
 from scope.core.pipelines.controller import CtrlInput as CtrlInput  # noqa: PLC0414
 
 if TYPE_CHECKING:
-    
     from .artifacts import Artifact
 
 
 # Field templates - use these to override defaults while keeping constraints/descriptions
-# Fields marked with ui_field_config(extra=True) are hidden unless using --all-fields flag
 def height_field(default: int = 512) -> FieldInfo:
-    """Height field with standard constraints (essential)."""
-    return Field(
-        default=default,
-        ge=1,
-        description="Output height in pixels"
-    )
+    """Height field with standard constraints."""
+    return Field(default=default, ge=1, description="Output height in pixels")
 
 
 def width_field(default: int = 512) -> FieldInfo:
-    """Width field with standard constraints (essential)."""
-    return Field(
-        default=default,
-        ge=1,
-        description="Output width in pixels"
-    )
+    """Width field with standard constraints."""
+    return Field(default=default, ge=1, description="Output width in pixels")
 
 
 def denoising_steps_field(default: list[int] | None = None) -> FieldInfo:
-    """Denoising steps field (essential)."""
+    """Denoising steps field."""
     return Field(
         default=default,
-        description="Denoising step schedule for progressive generation"
+        description="Denoising step schedule for progressive generation",
     )
 
 
 def noise_scale_field(default: float | None = None) -> FieldInfo:
-    """Noise scale field with constraints (essential)."""
+    """Noise scale field with constraints."""
     return Field(
         default=default,
         ge=0.0,
         le=1.0,
-        description="Amount of noise to add during video generation (video mode only)"
+        description="Amount of noise to add during video generation (video mode only)",
     )
 
 
@@ -71,7 +61,7 @@ def noise_controller_field(default: bool | None = None) -> FieldInfo:
     """Noise controller field (essential)."""
     return Field(
         default=default,
-        description="Enable dynamic noise control during generation (video mode only)"
+        description="Enable dynamic noise control during generation (video mode only)",
     )
 
 
@@ -82,7 +72,7 @@ def input_size_field(default: int | None = 1) -> FieldInfo:
     return Field(
         default=default,
         ge=1,
-        description="Expected input video frame count (video mode only)"
+        description="Expected input video frame count (video mode only)",
     )
 
 
@@ -90,7 +80,7 @@ def ref_images_field(default: list[str] | None = None) -> FieldInfo:
     """Reference images field for VACE."""
     return Field(
         default=default,
-        description="List of reference image paths for VACE conditioning"
+        description="List of reference image paths for VACE conditioning",
     )
 
 
@@ -116,7 +106,7 @@ def ui_field_config(
     is_load_param: bool = False,
     label: str | None = None,
     category: Literal["configuration", "input"] | None = None,
-    extra: bool = False,  # Default to False (show by default)
+    extra: bool = False,
 ) -> dict[str, Any]:
     """Build json_schema_extra for a field so the frontend renders it in Settings or Input & Controls.
 
@@ -278,20 +268,19 @@ class BasePipelineConfig(BaseModel):
     height: int = height_field()
     width: int = width_field()
 
-    # Core parameters (essential)
+    # Core parameters
     manage_cache: bool = Field(
         default=True,
-        description="Enable automatic cache management for performance optimization"
+        description="Enable automatic cache management for performance optimization",
     )
     base_seed: Annotated[int, Field(ge=0)] = Field(
         default=42,
-        description="Base random seed for reproducible generation"
+        description="Base random seed for reproducible generation",
     )
     denoising_steps: list[int] | None = denoising_steps_field()
 
     # LoRA merge strategy (optional; pipelines with supports_lora override with default + ui)
     lora_merge_strategy: Literal["permanent_merge", "runtime_peft"] | None = None
-
 
     # Video mode parameters (None means not applicable/text mode)
     noise_scale: Annotated[float, Field(ge=0.0, le=1.0)] | None = noise_scale_field()
@@ -369,7 +358,6 @@ class BasePipelineConfig(BaseModel):
         Returns:
             Dict containing pipeline metadata
         """
-
         metadata = cls.get_pipeline_metadata()
         metadata["supported_modes"] = cls.get_supported_modes()
         metadata["default_mode"] = cls.get_default_mode()
