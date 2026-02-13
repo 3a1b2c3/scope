@@ -533,6 +533,30 @@ class PipelineManager:
             # Plugin pipeline - instantiate generically with load_params
             logger.info(f"Loading plugin pipeline: {pipeline_id}")
             load_params = load_params or {}
+
+            # Filter out extra fields if --all-fields flag is not set
+            import os
+            show_all_fields = os.environ.get("DAYDREAM_SCOPE_ALL_FIELDS", "").lower() in ("1", "true", "yes")
+            if not show_all_fields:
+                # Get the config class to check which fields are marked as extra
+                config_class = pipeline_class.get_config_class()
+                if config_class:
+                    # Get the JSON schema to identify extra fields
+                    schema = config_class.model_json_schema()
+                    properties = schema.get("properties", {})
+
+                    # Filter out fields marked with extra=True
+                    filtered_params = {}
+                    for key, value in load_params.items():
+                        field_schema = properties.get(key, {})
+                        is_extra = field_schema.get("ui", {}).get("extra", False)
+                        if not is_extra:
+                            filtered_params[key] = value
+                        else:
+                            logger.debug(f"Filtering out extra field: {key}")
+
+                    load_params = filtered_params
+
             return pipeline_class(**load_params)
 
         # Fall through to built-in pipeline initialization

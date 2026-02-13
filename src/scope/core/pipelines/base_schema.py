@@ -25,18 +25,18 @@ from pydantic.fields import FieldInfo
 from scope.core.pipelines.controller import CtrlInput as CtrlInput  # noqa: PLC0414
 
 if TYPE_CHECKING:
+    
     from .artifacts import Artifact
 
 
 # Field templates - use these to override defaults while keeping constraints/descriptions
-# Essential fields are marked with ui_field_config(essential=True) by default
+# Fields marked with ui_field_config(extra=True) are hidden unless using --all-fields flag
 def height_field(default: int = 512) -> FieldInfo:
     """Height field with standard constraints (essential)."""
     return Field(
         default=default,
         ge=1,
-        description="Output height in pixels",
-        json_schema_extra=ui_field_config(essential=True)
+        description="Output height in pixels"
     )
 
 
@@ -45,8 +45,7 @@ def width_field(default: int = 512) -> FieldInfo:
     return Field(
         default=default,
         ge=1,
-        description="Output width in pixels",
-        json_schema_extra=ui_field_config(essential=True)
+        description="Output width in pixels"
     )
 
 
@@ -54,8 +53,7 @@ def denoising_steps_field(default: list[int] | None = None) -> FieldInfo:
     """Denoising steps field (essential)."""
     return Field(
         default=default,
-        description="Denoising step schedule for progressive generation",
-        json_schema_extra=ui_field_config(essential=True)
+        description="Denoising step schedule for progressive generation"
     )
 
 
@@ -65,8 +63,7 @@ def noise_scale_field(default: float | None = None) -> FieldInfo:
         default=default,
         ge=0.0,
         le=1.0,
-        description="Amount of noise to add during video generation (video mode only)",
-        json_schema_extra=ui_field_config(essential=True)
+        description="Amount of noise to add during video generation (video mode only)"
     )
 
 
@@ -74,38 +71,36 @@ def noise_controller_field(default: bool | None = None) -> FieldInfo:
     """Noise controller field (essential)."""
     return Field(
         default=default,
-        description="Enable dynamic noise control during generation (video mode only)",
-        json_schema_extra=ui_field_config(essential=True)
+        description="Enable dynamic noise control during generation (video mode only)"
     )
 
 
 def input_size_field(default: int | None = 1) -> FieldInfo:
-    """Input size field with constraints (essential)."""
+    """Input size field with constraints. No json_schema_extra in base — pipelines
+    that want to show this in the UI override with ui_field_config(category="input", ...).
+    """
     return Field(
         default=default,
         ge=1,
-        description="Expected input video frame count (video mode only)",
-        json_schema_extra=ui_field_config(essential=True)
+        description="Expected input video frame count (video mode only)"
     )
 
 
 def ref_images_field(default: list[str] | None = None) -> FieldInfo:
-    """Reference images field for VACE (essential)."""
+    """Reference images field for VACE."""
     return Field(
         default=default,
-        description="List of reference image paths for VACE conditioning",
-        json_schema_extra=ui_field_config(essential=True)
+        description="List of reference image paths for VACE conditioning"
     )
 
 
 def vace_context_scale_field(default: float = 1.0) -> FieldInfo:
-    """VACE context scale field with constraints (essential)."""
+    """VACE context scale field with constraints."""
     return Field(
         default=default,
         ge=0.0,
         le=2.0,
         description="Scaling factor for VACE hint injection (0.0 to 2.0)",
-        json_schema_extra=ui_field_config(essential=True)
     )
 
 
@@ -121,7 +116,7 @@ def ui_field_config(
     is_load_param: bool = False,
     label: str | None = None,
     category: Literal["configuration", "input"] | None = None,
-    essential: bool = False,
+    extra: bool = False,  # Default to False (show by default)
 ) -> dict[str, Any]:
     """Build json_schema_extra for a field so the frontend renders it in Settings or Input & Controls.
 
@@ -144,8 +139,8 @@ def ui_field_config(
             the field label; description remains available as tooltip.
         category: "configuration" for Settings panel, "input" for Input & Controls
             (below Prompts). Omit to default to "configuration".
-        essential: If True, this field is always shown even when DAYDREAM_SCOPE_ESSENTIAL_FIELDS_ONLY=1.
-            Default False.
+        extra: If True, this field is hidden by default and only shown when using --all-fields flag
+            or when DAYDREAM_SCOPE_ALL_FIELDS=true. Default False (field is shown by default).
 
     Returns:
         Dict to pass as json_schema_extra (produces "ui" key in JSON schema).
@@ -162,8 +157,8 @@ def ui_field_config(
         ui["modes"] = modes
     if label is not None:
         ui["label"] = label
-    if essential:
-        ui["essential"] = True
+    if extra:
+        ui["extra"] = True
     return {"ui": ui}
 
 
@@ -286,13 +281,11 @@ class BasePipelineConfig(BaseModel):
     # Core parameters (essential)
     manage_cache: bool = Field(
         default=True,
-        description="Enable automatic cache management for performance optimization",
-        json_schema_extra=ui_field_config(essential=True)
+        description="Enable automatic cache management for performance optimization"
     )
     base_seed: Annotated[int, Field(ge=0)] = Field(
         default=42,
-        description="Base random seed for reproducible generation",
-        json_schema_extra=ui_field_config(essential=True)
+        description="Base random seed for reproducible generation"
     )
     denoising_steps: list[int] | None = denoising_steps_field()
 
@@ -410,20 +403,21 @@ class BasePipelineConfig(BaseModel):
         # Get full schema
         config_schema = cls.model_json_schema()
 
-        # Show all fields by default. Set DAYDREAM_SCOPE_ESSENTIAL_FIELDS_ONLY=1 to filter
-        essential_fields_only = os.environ.get("DAYDREAM_SCOPE_ESSENTIAL_FIELDS_ONLY", "").lower() in ("1", "true", "yes")
+        # Hide extra fields by default. Set DAYDREAM_SCOPE_ALL_FIELDS=true or use --all-fields flag to show them
+        show_extra_fields = (
+            os.environ.get("DAYDREAM_SCOPE_ALL_FIELDS", "").lower() in ("1", "true", "yes")
+            or os.environ.get("DAYDREAM_SCOPE_EXTRA_FIELDS", "").lower() in ("1", "true", "yes")
+        )
 
-        if essential_fields_only:
-            # Filter to only fields marked as essential via ui_field_config(essential=True)
-            # or hardcoded essential fields (prompts, ctrl_input, images)
+        if not show_extra_fields:
+            # Filter out fields marked with extra=True in ui_field_config
             if "properties" in config_schema:
-                essential_field_names = {"prompts", "ctrl_input", "images"}  # Always essential
-
                 filtered_properties = {}
                 for field_name, field_schema in config_schema["properties"].items():
-                    # Check if field is marked as essential in UI config
-                    is_essential = field_schema.get("ui", {}).get("essential", False)
-                    if field_name in essential_field_names or is_essential:
+                    # Check if field is marked as extra in UI config
+                    is_extra = field_schema.get("ui", {}).get("extra", False)
+                    # Only include if NOT marked as extra
+                    if not is_extra:
                         filtered_properties[field_name] = field_schema
 
                 config_schema["properties"] = filtered_properties
